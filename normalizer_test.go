@@ -95,6 +95,36 @@ func TestWhitespaceCollapseTransformer(t *testing.T) {
 	}
 }
 
+// TestDefaultNormalizerPercent pins the 100-vs-95 weighting of
+// defaultNormalizerPercent directly, independent of ContainsNormalized.
+// Case folding and whitespace collapse keep a match at 100; any of NFKD,
+// strip-format, strip-mark, or punctuation drops it to 95.
+func TestDefaultNormalizerPercent(t *testing.T) {
+	testCases := []struct {
+		name     string
+		bits     uint32
+		expected int
+	}{
+		{name: "no normalization", bits: 0, expected: 100},
+		{name: "casefold only", bits: normalizerCaseFold, expected: 100},
+		{name: "whitespace only", bits: normalizerWhitespace, expected: 100},
+		{name: "casefold and whitespace", bits: normalizerCaseFold | normalizerWhitespace, expected: 100},
+		{name: "NFKD only", bits: normalizerNFKD, expected: 95},
+		{name: "strip format only", bits: normalizerStripFormat, expected: 95},
+		{name: "strip mark only", bits: normalizerStripMark, expected: 95},
+		{name: "punctuation only", bits: normalizerPunctuation, expected: 95},
+		{name: "casefold plus punctuation", bits: normalizerCaseFold | normalizerPunctuation, expected: 95},
+		{name: "all rules combined", bits: normalizerCaseFold | normalizerNFKD | normalizerStripFormat | normalizerStripMark | normalizerPunctuation | normalizerWhitespace, expected: 95},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if result := defaultNormalizerPercent(tc.bits); result != tc.expected {
+				t.Errorf("defaultNormalizerPercent(%#b) = %d, want %d", tc.bits, result, tc.expected)
+			}
+		})
+	}
+}
+
 func assertStringEqual(t *testing.T, expected string, result string) {
 	t.Helper()
 	if expected != result {

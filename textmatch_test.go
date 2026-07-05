@@ -157,42 +157,30 @@ func firstWordLower(s string) string {
 
 func TestContainsNormalizedCustomNormalizer(t *testing.T) {
 	firstWord := Normalizer{Percent: 87, Normalize: firstWordLower}
-
-	t.Run("custom normalizer matches", func(t *testing.T) {
-		if result := ContainsNormalized("hot dog", "hot cat", firstWord); result != 87 {
-			t.Errorf("got %d, want 87", result)
-		}
-	})
-
-	t.Run("custom normalizer no match", func(t *testing.T) {
-		if result := ContainsNormalized("hot dog", "cat dog", firstWord); result != 0 {
-			t.Errorf("got %d, want 0", result)
-		}
-	})
-
-	t.Run("nil normalize is skipped", func(t *testing.T) {
-		normalizers := []Normalizer{{Percent: 50, Normalize: nil}, firstWord}
-		if result := ContainsNormalized("hot dog", "hot cat", normalizers...); result != 87 {
-			t.Errorf("got %d, want 87 (nil normalizer should be skipped)", result)
-		}
-	})
-
-	t.Run("matching normalizer with percent 0 returns 0", func(t *testing.T) {
-		zero := Normalizer{Percent: 0, Normalize: firstWordLower}
-		if result := ContainsNormalized("hot dog", "hot cat", zero); result != 0 {
-			t.Errorf("got %d, want 0", result)
-		}
-	})
-
-	t.Run("custom normalizer replaces default entirely", func(t *testing.T) {
-		// Default normalization would match "caf\u00e9" -> "cafe" contains "cafe"
-		// (95), but supplying any custom normalizer means the default is not
-		// applied. ToUpper does not strip the mark, so there is no match.
-		upper := Normalizer{Percent: 80, Normalize: strings.ToUpper}
-		if result := ContainsNormalized("caf\u00E9", "cafe", upper); result != 0 {
-			t.Errorf("got %d, want 0 (custom should replace default)", result)
-		}
-	})
+	testCases := []struct {
+		name        string
+		s           string
+		substr      string
+		normalizers []Normalizer
+		expected    int
+	}{
+		{name: "custom normalizer matches", s: "hot dog", substr: "hot cat", normalizers: []Normalizer{firstWord}, expected: 87},
+		{name: "custom normalizer no match", s: "hot dog", substr: "cat dog", normalizers: []Normalizer{firstWord}, expected: 0},
+		{name: "nil normalize is skipped", s: "hot dog", substr: "hot cat", normalizers: []Normalizer{{Percent: 50, Normalize: nil}, firstWord}, expected: 87},
+		{name: "matching normalizer with percent 0 returns 0", s: "hot dog", substr: "hot cat", normalizers: []Normalizer{{Percent: 0, Normalize: firstWordLower}}, expected: 0},
+		// Supplying any custom normalizer replaces the default entirely, so a
+		// non-matching custom normalizer yields 0 even when the default would match
+		// ("caf\u00e9" -> "cafe" contains "cafe"). ToUpper does not strip the mark.
+		{name: "custom normalizer replaces default entirely", s: "caf\u00E9", substr: "cafe", normalizers: []Normalizer{{Percent: 80, Normalize: strings.ToUpper}}, expected: 0},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := ContainsNormalized(tc.s, tc.substr, tc.normalizers...)
+			if result != tc.expected {
+				t.Errorf("ContainsNormalized(%q, %q) = %d, want %d", tc.s, tc.substr, result, tc.expected)
+			}
+		})
+	}
 }
 
 func TestContainsNormalizedMultipleCustomNormalizers(t *testing.T) {

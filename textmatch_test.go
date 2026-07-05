@@ -72,10 +72,10 @@ func TestContainsNormalizedWhitespace(t *testing.T) {
 	})
 }
 
-// TestContainsNormalizedPercentScoring pins the 100-vs-95 contract of
-// defaultNormalizerPercent: case folding and whitespace collapse keep a match
-// at 100, while any of NFKD / strip-format / strip-mark / punctuation drops it
-// to 95. The union (sBits|substrBits) is exercised by using a clean needle.
+// TestContainsNormalizedPercentScoring isolates each 95-level normalization
+// rule through ContainsNormalized and pins the resulting score, using a clean
+// needle so the sBits|substrBits union is exercised one-sided. The 100
+// baseline for case folding and whitespace is covered by TestDefaultNormalizerPercent.
 func TestContainsNormalizedPercentScoring(t *testing.T) {
 	runContainsCases(t, []struct {
 		name     string
@@ -83,8 +83,6 @@ func TestContainsNormalizedPercentScoring(t *testing.T) {
 		substr   string
 		expected int
 	}{
-		{name: "casefold only -> 100", s: "hotdog", substr: "Dog", expected: 100},
-		{name: "whitespace only -> 100", s: "my hot     dog", substr: "hot dog", expected: 100},
 		{name: "punctuation only -> 95", s: "hot-dog", substr: "hot dog", expected: 95},
 		{name: "strip format only -> 95", s: "hot\u200Bdog", substr: "hotdog", expected: 95},
 		{name: "NFKD only -> 95", s: "\uFF41\uFF42\uFF43", substr: "abc", expected: 95},
@@ -93,11 +91,10 @@ func TestContainsNormalizedPercentScoring(t *testing.T) {
 	})
 }
 
-// TestContainsNormalizedNormalizationRules supersedes the former
-// TestContainsNormalizedExamples. Each row targets one normalization rule and
-// asserts the exact percent rather than only > 0, so a rule's score cannot
-// silently regress. Most rules score 95; the ligature scores 100 because case
-// folding itself resolves U+FB01 to "fi" (so NFKD never runs).
+// TestContainsNormalizedNormalizationRules exercises one normalization rule per
+// row and pins the exact score, so a rule's percent cannot silently regress.
+// Most rules score 95; the ligature scores 100 because case folding itself
+// resolves U+FB01 to "fi" (so NFKD never runs).
 func TestContainsNormalizedNormalizationRules(t *testing.T) {
 	runContainsCases(t, []struct {
 		name     string
@@ -147,7 +144,6 @@ func TestContainsNormalizedEdgeCases(t *testing.T) {
 	}{
 		{name: "empty needle", s: "hot cat", substr: "", expected: 100},
 		{name: "empty needle and haystack", s: "", substr: "", expected: 100},
-		{name: "empty needle any haystack", s: "anything", substr: "", expected: 100},
 	})
 }
 
